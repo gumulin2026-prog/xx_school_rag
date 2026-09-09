@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduRAG 智能问答</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #f7f8fc;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #1e293b;
+        }
+        .navbar {
+            background: white;
+            padding: 12px 24px;
+            border-bottom: 1px solid #e9edf4;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .navbar-brand i { color: #4f6ef7; font-size: 22px; }
+        .navbar-actions { display: flex; gap: 12px; align-items: center; }
+        .navbar-actions button {
+            background: none; border: none; color: #64748b; font-size: 16px;
+            cursor: pointer; padding: 6px 10px; border-radius: 8px; transition: 0.2s;
+        }
+        .navbar-actions button:hover { background: #f1f5f9; color: #0f172a; }
+
+        .main { display: flex; flex: 1; overflow: hidden; }
+
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid #e9edf4;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow-y: auto;
+        }
+        .sidebar-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .sidebar-actions button {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn-new { background: #4f6ef7; color: white; }
+        .btn-new:hover { background: #3b5de7; }
+        .btn-clear-all { background: #f1f5f9; color: #64748b; }
+        .btn-clear-all:hover { background: #fee2e2; color: #ef4444; }
+
+        .sidebar-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .session-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .session-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            transition: 0.15s;
+            margin-bottom: 4px;
+            border: 1px solid transparent;
+        }
+        .session-item:hover { background: #f1f5f9; border-color: #e9edf4; }
+        .session-item.active { background: #eef2ff; border-color: #c7d2fe; }
+
+        .session-item .title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .session-item .meta {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+        .session-item .badge {
+            display: inline-block;
+            background: #e9edf4;
+            padding: 0 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            color: #64748b;
+            margin-left: 6px;
+        }
+        .session-item .delete-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .session-item .delete-btn:hover {
+            color: #ef4444;
+            background: #fee2e2;
+        }
+
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #f7f8fc;
+            min-width: 0;
+        }
+
+        .chat-header {
+            padding: 12px 24px;
+            background: white;
+            border-bottom: 1px solid #e9edf4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .chat-header .title { font-size: 14px; font-weight: 500; color: #0f172a; }
+        .chat-header .sub { font-size: 12px; color: #94a3b8; }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message { max-width: 80%; animation: fadeIn 0.25s ease; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        .message-user { align-self: flex-end; }
+        .message-user .message-bubble {
+            background: #4f6ef7; color: white; border-radius: 16px 16px 4px 16px;
+        }
+        .message-assistant { align-self: flex-start; }
+        .message-assistant .message-bubble {
+            background: white; color: #0f172a; border-radius: 16px 16px 16px 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #e9edf4;
+        }
+        .message-bubble {
+            padding: 12px 18px;
+            font-size: 15px;
+            line-height: 1.7;
+            word-break: break-word;
+        }
+        .message-bubble pre {
+            background: #f1f5f9; padding: 12px 16px; border-radius: 8px;
+            overflow-x: auto; font-size: 13px; margin: 8px 0; border: 1px solid #e9edf4;
+        }
+        .message-bubble code { font-family: monospace; font-size: 13px; }
+
+        .chat-input-area {
+            padding: 16px 24px 20px;
+            background: transparent;
+            flex-shrink: 0;
+        }
+        .chat-input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            background: white;
+            border-radius: 16px;
+            padding: 8px 8px 8px 18px;
+            border: 1px solid #e9edf4;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            transition: 0.2s;
+        }
+        .chat-input-wrapper:focus-within { border-color: #4f6ef7; box-shadow: 0 2px 12px rgba(79,110,247,0.12); }
+        .chat-input-wrapper textarea {
+            flex: 1; border: none; padding: 8px 0; font-size: 15px;
+            resize: none; outline: none; font-family: inherit;
+            background: transparent; color: #0f172a;
+            max-height: 120px; line-height: 1.6; min-height: 24px;
+        }
+        .chat-input-wrapper textarea::placeholder { color: #94a3b8; }
+        .btn-send {
+            background: #4f6ef7; color: white; border: none;
+            border-radius: 12px; padding: 8px 18px; font-size: 14px;
+            font-weight: 600; cursor: pointer; transition: 0.2s;
+            display: flex; align-items: center; gap: 6px;
+            flex-shrink: 0;
+        }
+        .btn-send:hover { background: #3b5de7; }
+        .btn-send:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+        .filter-bar {
+            display: flex; align-items: center; gap: 10px;
+            padding: 0 24px 8px; font-size: 13px; color: #64748b;
+        }
+        .filter-bar select {
+            padding: 4px 10px; border-radius: 6px; border: 1px solid #e9edf4;
+            background: white; font-size: 13px; color: #0f172a; outline: none;
+        }
+
+        .quick-questions {
+            display: flex; gap: 8px; padding: 0 24px 12px; flex-wrap: wrap;
+        }
+        .quick-questions button {
+            padding: 4px 14px; border: 1px solid #e9edf4; border-radius: 20px;
+            background: white; font-size: 13px; color: #475569; cursor: pointer;
+            transition: 0.2s;
+        }
+        .quick-questions button:hover { background: #f1f5f9; border-color: #cbd5e1; }
+
+        .typing-indicator {
+            display: flex; align-items: center; gap: 4px; padding: 8px 0;
+        }
+        .typing-indicator span {
+            width: 8px; height: 8px; background: #94a3b8; border-radius: 50%;
+            animation: typingBounce 1.2s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingBounce {
+            0%,60%,100% { transform: translateY(0); }
+            30% { transform: translateY(-6px); }
+        }
+
+        .empty-state {
+            color: #94a3b8; font-size: 14px; text-align: center;
+            padding: 40px 0;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .chat-messages { padding: 16px; }
+            .chat-input-area { padding: 12px 16px 16px; }
+            .filter-bar { padding: 0 16px 6px; }
+            .quick-questions { padding: 0 16px 10px; }
+            .message { max-width: 92%; }
+            .chat-header { padding: 10px 16px; }
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <i class="fas fa-graduation-cap"></i>
+            <span>EduRAG</span>
+            <span style="font-weight:400;font-size:13px;color:#94a3b8;">智能问答</span>
+        </div>
+        <div class="navbar-actions">
+            <button onclick="window.location.reload()" title="刷新"><i class="fas fa-sync-alt"></i></button>
+        </div>
+    </nav>
+
+    <div class="main">
+
+        <!-- 左侧会话列表 -->
+        <aside class="sidebar">
+            <div class="sidebar-actions">
+                <button class="btn-new" onclick="createNewSession()"><i class="fas fa-plus"></i> 新会话</button>
+                <button class="btn-clear-all" onclick="clearAllSessions()"><i class="fas fa-trash"></i></button>
+            </div>
+            <div class="sidebar-title">📋 历史会话</div>
+            <div class="session-list" id="sessionList">
+                <div class="empty-state">加载中...</div>
+            </div>
+        </aside>
+
+        <!-- 聊天区 -->
+        <main class="chat-area">
+
+            <div class="chat-header">
+                <div>
+                    <span class="title" id="chatTitle">EduRAG 助手</span>
+                    <span class="sub" id="chatSub">选择或新建一个会话开始对话</span>
+                </div>
+                <span style="font-size:12px;color:#94a3b8;" id="sessionIdDisplay">-</span>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="message message-assistant">
+                    <div class="message-bubble">
+                        你好！我是 <strong>EduRAG</strong> 智能助手。选择左侧的会话继续对话，或点击「新会话」开始新的交流。
+                    </div>
+                </div>
+            </div>
+
+            <div class="quick-questions">
+                <button onclick="quickAsk('什么是人工智能？')">🤖 什么是人工智能？</button>
+                <button onclick="quickAsk('机器学习有哪些算法？')">📊 机器学习算法</button>
+                <button onclick="quickAsk('如何学习Python？')">🐍 如何学习Python？</button>
+            </div>
+
+            <div class="filter-bar">
+                <span>📂 学科</span>
+                <select id="sourceFilter"><option value="">全部</option></select>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="chat-input-wrapper">
+                    <textarea id="chatInput" rows="1" placeholder="输入你的问题..." oninput="autoResize(this)"></textarea>
+                    <button class="btn-send" id="sendBtn" onclick="sendMessage()">
+                        发送 <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // ============================================================
+        // 配置
+        // ============================================================
+        const API_BASE = '';
+        let currentSessionId = null;
+        let isProcessing = false;
+        let ws = null;
+
+        // ============================================================
+        // DOM 引用
+        // ============================================================
+        const messagesEl = document.getElementById('chatMessages');
+        const inputEl = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const sourceFilter = document.getElementById('sourceFilter');
+        const sessionList = document.getElementById('sessionList');
+        const sessionIdDisplay = document.getElementById('sessionIdDisplay');
+        const chatTitle = document.getElementById('chatTitle');
+        const chatSub = document.getElementById('chatSub');
+
+        // ============================================================
+        // 初始化
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadSources();
+            await loadSessions();
+            if (sessionList.children.length === 0 || sessionList.querySelector('.empty-state')) {
+                await createNewSession();
+            }
+            inputEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+        });
+
+        // ============================================================
+        // 会话管理
+        // ============================================================
+
+        async function loadSessions() {
+            try {
+                const res = await fetch(`${API_BASE}/api/sessions`);
+                const data = await res.json();
+                const sessions = data.sessions || [];
+
+                sessionList.innerHTML = '';
+                if (sessions.length === 0) {
+                    sessionList.innerHTML = `<div class="empty-state">暂无会话，点击「新会话」开始</div>`;
+                    return;
+                }
+
+                sessions.forEach(s => {
+                    const div = document.createElement('div');
+                    div.className = 'session-item';
+                    if (s.session_id === currentSessionId) {
+                        div.classList.add('active');
+                    }
+                    div.innerHTML = `
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div style="flex:1;cursor:pointer;min-width:0;" onclick="switchSession('${s.session_id}')">
+                                <div class="title">${s.last_question || '空对话'}</div>
+                                <div class="meta">
+                                    ${s.message_count} 条消息 · ${s.created_at}
+                                    <span class="badge">${s.message_count > 0 ? '有记录' : '空'}</span>
+                                </div>
+                            </div>
+                            <button class="delete-btn" onclick="event.stopPropagation();deleteSession('${s.session_id}')" title="删除此会话">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                    sessionList.appendChild(div);
+                });
+            } catch (e) {
+                console.error('加载会话列表失败:', e);
+                sessionList.innerHTML = `<div class="empty-state">加载失败，请刷新</div>`;
+            }
+        }
+
+        async function createNewSession() {
+            try {
+                const res = await fetch(`${API_BASE}/api/create_session`, { method: 'POST' });
+                const data = await res.json();
+                currentSessionId = data.session_id;
+                sessionIdDisplay.textContent = currentSessionId.slice(0, 8) + '...';
+                chatTitle.textContent = '新会话';
+                chatSub.textContent = '开始新的对话';
+
+                messagesEl.innerHTML = `
+                    <div class="message message-assistant">
+                        <div class="message-bubble">你好！我是 <strong>EduRAG</strong> 智能助手，有什么可以帮你的吗？</div>
+                    </div>
+                `;
+
+                await loadSessions();
+            } catch (e) {
+                console.error('创建会话失败:', e);
+                alert('创建会话失败，请重试');
+            }
+        }
+
+        async function switchSession(sessionId) {
+            if (sessionId === currentSessionId) return;
+            if (isProcessing) {
+                alert('正在处理中，请稍后');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/session/${sessionId}/switch`);
+                const data = await res.json();
+                if (!data.success) {
+                    alert('会话不存在');
+                    return;
+                }
+
+                currentSessionId = sessionId;
+                sessionIdDisplay.textContent = sessionId.slice(0, 8) + '...';
+                chatTitle.textContent = '会话';
+                chatSub.textContent = '加载历史消息...';
+
+                const msgRes = await fetch(`${API_BASE}/api/session/${sessionId}/messages`);
+                const msgData = await msgRes.json();
+                const messages = msgData.messages || [];
+
+                messagesEl.innerHTML = '';
+                if (messages.length === 0) {
+                    messagesEl.innerHTML = `
+                        <div class="message message-assistant">
+                            <div class="message-bubble">这个会话还没有消息，开始提问吧！</div>
+                        </div>
+                    `;
+                } else {
+                    messages.forEach(m => {
+                        appendMessage('user', m.question);
+                        appendMessage('assistant', m.answer);
+                    });
+                }
+
+                chatSub.textContent = `${messages.length} 条消息`;
+                await loadSessions();
+                scrollToBottom();
+
+            } catch (e) {
+                console.error('切换会话失败:', e);
+                alert('切换会话失败');
+            }
+        }
+
+        async function deleteSession(sessionId) {
+            if (!confirm('确定要删除这个会话吗？所有消息将被永久删除。')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/session/${sessionId}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    if (sessionId === currentSessionId) {
+                        const listRes = await fetch(`${API_BASE}/api/sessions`);
+                        const listData = await listRes.json();
+                        const sessions = listData.sessions || [];
+                        if (sessions.length > 0) {
+                            await switchSession(sessions[0].session_id);
+                        } else {
+                            await createNewSession();
+                        }
+                    }
+                    await loadSessions();
+                } else {
+                    alert('删除失败: ' + data.message);
+                }
+            } catch (e) {
+                console.error('删除会话失败:', e);
+                alert('删除失败，请重试');
+            }
+        }
+
+        async function clearAllSessions() {
+            if (!confirm('确定要删除所有会话历史吗？此操作不可恢复！')) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/sessions`);
+                const data = await res.json();
+                const sessions = data.sessions || [];
+
+                for (const s of sessions) {
+                    await fetch(`${API_BASE}/api/history/${s.session_id}`, { method: 'DELETE' });
+                }
+
+                await loadSessions();
+                await createNewSession();
+            } catch (e) {
+                console.error('清除所有会话失败:', e);
+                alert('清除失败，请重试');
+            }
+        }
+
+        // ============================================================
+        // 发送消息
+        // ============================================================
+
+        async function sendMessage() {
+            const query = inputEl.value.trim();
+            if (!query || isProcessing || !currentSessionId) return;
+
+            inputEl.value = '';
+            inputEl.style.height = 'auto';
+            isProcessing = true;
+            sendBtn.disabled = true;
+
+            appendMessage('user', query);
+
+            const assistantMsg = document.createElement('div');
+            assistantMsg.className = 'message message-assistant';
+            assistantMsg.innerHTML = `<div class="message-bubble"><span class="typing-indicator"><span></span><span></span><span></span></span></div>`;
+            messagesEl.appendChild(assistantMsg);
+            scrollToBottom();
+
+            const filter = sourceFilter.value;
+
+            try {
+                const checkRes = await fetch(`${API_BASE}/api/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, source_filter: filter, session_id: currentSessionId })
+                });
+                const checkData = await checkRes.json();
+
+                if (!checkData.is_streaming) {
+                    assistantMsg.innerHTML = `<div class="message-bubble">${marked.parse(checkData.answer)}</div>`;
+                    isProcessing = false;
+                    sendBtn.disabled = false;
+                    await loadSessions();
+                    scrollToBottom();
+                    return;
+                }
+
+                const wsUrl = `ws://${window.location.host}${API_BASE}/api/stream`;
+                ws = new WebSocket(wsUrl);
+                let fullAnswer = '';
+
+                ws.onopen = () => {
+                    ws.send(JSON.stringify({
+                        query, source_filter: filter, session_id: currentSessionId
+                    }));
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'token') {
+                        fullAnswer += data.token;
+                        assistantMsg.innerHTML = `<div class="message-bubble">${marked.parse(fullAnswer)}</div>`;
+                        scrollToBottom();
+                    }
+                    if (data.type === 'end') {
+                        ws.close();
+                        if (fullAnswer) {
+                            fetch(`${API_BASE}/api/history/${currentSessionId}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ question: query, answer: fullAnswer })
+                            });
+                            loadSessions();
+                        }
+                        isProcessing = false;
+                        sendBtn.disabled = false;
+                    }
+                    if (data.type === 'error') {
+                        assistantMsg.innerHTML = `<div class="message-bubble" style="color:#ef4444;">错误: ${data.error}</div>`;
+                        ws.close();
+                        isProcessing = false;
+                        sendBtn.disabled = false;
+                    }
+                };
+
+                ws.onerror = () => {
+                    assistantMsg.innerHTML = `<div class="message-bubble" style="color:#ef4444;">连接失败</div>`;
+                    isProcessing = false;
+                    sendBtn.disabled = false;
+                };
+
+                ws.onclose = () => {
+                    isProcessing = false;
+                    sendBtn.disabled = false;
+                };
+
+            } catch (e) {
+                console.error('发送失败:', e);
+                assistantMsg.innerHTML = `<div class="message-bubble" style="color:#ef4444;">请求失败: ${e.message}</div>`;
+                isProcessing = false;
+                sendBtn.disabled = false;
+            }
+        }
+
+        // ============================================================
+        // 工具函数
+        // ============================================================
+
+        function appendMessage(role, content) {
+            const div = document.createElement('div');
+            div.className = `message message-${role === 'user' ? 'user' : 'assistant'}`;
+            div.innerHTML = `<div class="message-bubble">${marked.parse(content)}</div>`;
+            messagesEl.appendChild(div);
+            scrollToBottom();
+        }
+
+        function quickAsk(text) {
+            inputEl.value = text;
+            inputEl.style.height = 'auto';
+            sendMessage();
+        }
+
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+        }
+
+        function scrollToBottom() {
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        async function loadSources() {
+            try {
+                const res = await fetch(`${API_BASE}/api/sources`);
+                const data = await res.json();
+                sourceFilter.innerHTML = '<option value="">全部</option>';
+                if (data.sources) {
+                    data.sources.forEach(s => {
+                        const opt = document.createElement('option');
+                        opt.value = s;
+                        opt.textContent = s;
+                        sourceFilter.appendChild(opt);
+                    });
+                }
+            } catch (e) { console.error('加载学科失败:', e); }
+        }
+    </script>
+</body>
+</html>

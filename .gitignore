@@ -1,0 +1,44 @@
+# ---- 密钥 / 本地配置 ----
+.env
+*.local
+
+# ---- 本地模型（体积大，从 ModelScope/HuggingFace 单独下载，见 models/README.md）----
+# 用 models/* 而非 models/，否则 !models/README.md 的例外不生效
+models/*
+!models/README.md
+
+# ---- 训练产物 ----
+bert_results/
+bert_logs/
+runs/
+*.ckpt
+
+# ---- 日志 / 缓存 ----
+logs/
+*.log
+.cache/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+build/
+dist/
+
+# ---- 虚拟环境 ----
+.venv/
+venv/
+env/
+
+# ---- IDE / 系统 ----
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---- 旧项目遗留备份 ----
+*.eduRAG_bak/
