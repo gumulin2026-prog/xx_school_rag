@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduRAG 智能问答</title>
+    <title>XX大学迎新助手</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
@@ -281,7 +281,7 @@
     <nav class="navbar">
         <div class="navbar-brand">
             <i class="fas fa-graduation-cap"></i>
-            <span>EduRAG</span>
+            <span>XX大学迎新助手</span>
             <span style="font-weight:400;font-size:13px;color:#94a3b8;">智能问答</span>
         </div>
         <div class="navbar-actions">
@@ -308,7 +308,7 @@
 
             <div class="chat-header">
                 <div>
-                    <span class="title" id="chatTitle">EduRAG 助手</span>
+                    <span class="title" id="chatTitle">迎新助手</span>
                     <span class="sub" id="chatSub">选择或新建一个会话开始对话</span>
                 </div>
                 <span style="font-size:12px;color:#94a3b8;" id="sessionIdDisplay">-</span>
@@ -317,19 +317,20 @@
             <div class="chat-messages" id="chatMessages">
                 <div class="message message-assistant">
                     <div class="message-bubble">
-                        你好！我是 <strong>EduRAG</strong> 智能助手。选择左侧的会话继续对话，或点击「新会话」开始新的交流。
+                        你好！我是 <strong>XX大学迎新助手</strong>，可以解答报到、住宿、校园卡、食堂、选课、军训、快递、交通、图书馆、社团等新生相关问题。选择左侧的会话继续对话，或点击「新会话」开始新的交流。
                     </div>
                 </div>
             </div>
 
             <div class="quick-questions">
-                <button onclick="quickAsk('什么是人工智能？')">🤖 什么是人工智能？</button>
-                <button onclick="quickAsk('机器学习有哪些算法？')">📊 机器学习算法</button>
-                <button onclick="quickAsk('如何学习Python？')">🐍 如何学习Python？</button>
+                <button onclick="quickAsk('报到需要带什么材料？')">📝 报到需要带什么材料？</button>
+                <button onclick="quickAsk('军训什么时候开始？持续多久？')">🪖 军训安排</button>
+                <button onclick="quickAsk('宿舍是几人间？怎么分配？')">🏠 宿舍怎么分配？</button>
+                <button onclick="quickAsk('新生什么时候选课？')">📚 什么时候选课？</button>
             </div>
 
             <div class="filter-bar">
-                <span>📂 学科</span>
+                <span>📂 分类</span>
                 <select id="sourceFilter"><option value="">全部</option></select>
             </div>
 
@@ -371,8 +372,10 @@
         // ============================================================
         document.addEventListener('DOMContentLoaded', async () => {
             await loadSources();
-            await loadSessions();
-            if (sessionList.children.length === 0 || sessionList.querySelector('.empty-state')) {
+            const sessions = await loadSessions();
+            if (sessions.length > 0) {
+                await switchSession(sessions[0].session_id);
+            } else {
                 await createNewSession();
             }
             inputEl.addEventListener('keydown', (e) => {
@@ -396,7 +399,7 @@
                 sessionList.innerHTML = '';
                 if (sessions.length === 0) {
                     sessionList.innerHTML = `<div class="empty-state">暂无会话，点击「新会话」开始</div>`;
-                    return;
+                    return sessions;
                 }
 
                 sessions.forEach(s => {
@@ -421,9 +424,11 @@
                     `;
                     sessionList.appendChild(div);
                 });
+                return sessions;
             } catch (e) {
                 console.error('加载会话列表失败:', e);
                 sessionList.innerHTML = `<div class="empty-state">加载失败，请刷新</div>`;
+                return [];
             }
         }
 
@@ -438,7 +443,7 @@
 
                 messagesEl.innerHTML = `
                     <div class="message message-assistant">
-                        <div class="message-bubble">你好！我是 <strong>EduRAG</strong> 智能助手，有什么可以帮你的吗？</div>
+                        <div class="message-bubble">你好！我是 <strong>XX大学迎新助手</strong>，有什么报到、住宿、选课相关的问题都可以问我～</div>
                     </div>
                 `;
 
@@ -457,7 +462,7 @@
             }
 
             try {
-                const res = await fetch(`${API_BASE}/api/session/${sessionId}/switch`);
+                const res = await fetch(`${API_BASE}/api/session/${sessionId}/switch`, { method: 'POST' });
                 const data = await res.json();
                 if (!data.success) {
                     alert('会话不存在');
@@ -537,7 +542,7 @@
                 const sessions = data.sessions || [];
 
                 for (const s of sessions) {
-                    await fetch(`${API_BASE}/api/history/${s.session_id}`, { method: 'DELETE' });
+                    await fetch(`${API_BASE}/api/session/${s.session_id}`, { method: 'DELETE' });
                 }
 
                 await loadSessions();

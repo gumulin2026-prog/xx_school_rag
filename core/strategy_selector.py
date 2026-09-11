@@ -3,33 +3,33 @@
 
 
 # 导入 LangChain 提示模板
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate  # 用于创建带占位符的提示词模板
 # 导入日志和配置
-from base.config import Config
-from base.logger import logger
+from base.config import Config  # 项目统一配置类
+from base.logger import logger  # 项目统一日志对象
 # 导入 OpenAI
-from core.llm_client import LLMClient
+from core.llm_client import LLMClient  # 封装好的大模型调用客户端
 
 # todo 定义StrategySelector类: 用于根据用户查询选择最合适的检索增强策略.
 class StrategySelector:
     # todo 1. 初始化方法
     def __init__(self):
         # 1. 加载配置
-        self.conf = Config()
+        self.conf = Config()  # 实例化配置对象
         # 2. 调用 OpenAI 客户端
-        self.llm = LLMClient()  # ← 复用
+        self.llm = LLMClient()  # ← 复用  # 复用已封装的 LLM 客户端，避免重复创建连接
         # 3. 获取策略选择提示模板
-        self.strategy_prompt_template = self._get_strategy_prompt()
+        self.strategy_prompt_template = self._get_strategy_prompt()  # 预先构建好策略选择用的 Prompt 模板，供后续填充
 
     # todo 2. 调用大模型的API -> 向DashScope发送请求, 获取模型返回结果.
     def call_dashscope(self, prompt):
         # 策略选择需要低温度
-        result = self.llm.call(
-            prompt=prompt,
-            system_prompt="你是一个有用的助手，能够根据用户输入的Prompt严格执行并返回可靠的结果",
-            temperature=0.1
+        result = self.llm.call(  # 调用大模型客户端发起请求
+            prompt=prompt,  # 传入已经填充好占位符的完整提示词
+            system_prompt="你是一个有用的助手，能够根据用户输入的Prompt严格执行并返回可靠的结果",  # 系统角色设定，约束模型严格按指令输出
+            temperature=0.1  # 低温度，让策略选择结果更确定、更少随机性
         )
-        return result if result else "直接检索"
+        return result if result else "直接检索"  # 若调用失败返回空结果，则兜底使用"直接检索"策略
 
     # todo 3. 获取策略选择提示模板 -> 定义引导大模型选择策略的固定格式文本.
     @staticmethod
@@ -71,7 +71,7 @@ template="""
             根据用户查询 {query}，直接返回最适合的策略名称，例如 "直接检索"。不要输出任何分析过程或其他内容。
             """
             ,
-            input_variables=["query"],
+            input_variables=["query"],  # 声明模板中出现的占位符名称
         )
 
     # todo 4. 定义方法，选择检索策略 -> 选择检索策略的核心方法 -> 整合模板和大模型调用, 返回最终策略.
@@ -82,16 +82,16 @@ template="""
         :return: 字符串 -> 选中的检索策略名称 -> 例如: 直接检索, 子查询检索...
         """
         # 1. 格式化提示模板: 将用户查询填充到提示模板的query为止, 生成发给大模型的完整提示, 调用大模型获取策略.
-        strategy = self.call_dashscope(self.strategy_prompt_template.format(query=query)).strip()
+        strategy = self.call_dashscope(self.strategy_prompt_template.format(query=query)).strip()  # 填充模板并调用大模型，再去除首尾空白
         # 2. 记录日志.
-        logger.info(f"为查询 '{query}' 选择的检索策略：{strategy}")
+        logger.info(f"为查询 '{query}' 选择的检索策略：{strategy}")  # 记录本次查询选中的策略
         # 3. 返回选中的策略.
-        return strategy
+        return strategy  # 返回策略名称字符串
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # 直接运行本文件时执行的自测代码
     # 1. 实例化策略选择器
-    ss = StrategySelector()
+    ss = StrategySelector()  # 创建策略选择器实例
     # 2. 测试策略选择
-    # ss.select_strategy('MySQL数据库能不能支持100W个样本的插入')
-    ss.select_strategy('对比北京和上海的人才引进政策, 从补贴金额, 落户难度, 产业适配性三个方面分析哪个更适合计算机专业毕业生')
-    # ss.select_strategy('如何培养孩子的时间管理能力')
+    # ss.select_strategy('MySQL数据库能不能支持100W个样本的插入')  # 已注释的测试用例
+    ss.select_strategy('对比北京和上海的人才引进政策, 从补贴金额, 落户难度, 产业适配性三个方面分析哪个更适合计算机专业毕业生')  # 执行一次策略选择测试
+    # ss.select_strategy('如何培养孩子的时间管理能力')  # 已注释的测试用例

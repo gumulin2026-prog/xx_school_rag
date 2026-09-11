@@ -3,14 +3,14 @@
 #      后续只需传入具体参数(例如: 上下文, 问题)即可快速生成符合需求的提示词, 避免重复编写提示词.
 
 # 导入 PromptTemplate 类，用于创建 Prompt 模板
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate  # LangChain 提供的模板类，支持用 {变量名} 占位并用 .format() 填充
 
 # todo 1.定义 RAGPrompts 类，用于管理所有 Prompt 模板
-class RAGPrompts:
+class RAGPrompts:  # 静态方法集合类，本身不需要实例化，直接通过类名调用
     # todo 1.1 定义 RAG 提示模板 -> 根据上下文生成答案, 无上下文则用自身知识, 无法回答时返回: 客服信息.
     # 定义 RAG 提示模板
-    @staticmethod
-    def rag_prompt():
+    @staticmethod  # 声明为静态方法，调用时无需传入 self
+    def rag_prompt():  # 返回"基础问答"场景使用的 Prompt 模板
         # 创建并返回 PromptTemplate 对象
         return PromptTemplate(
             template="""
@@ -30,13 +30,13 @@ class RAGPrompts:
                 回答:
                 """,
             #   定义输入变量
-            input_variables=["context", "history", "question", "phone"],
+            input_variables=["context", "history", "question", "phone"],  # 声明模板中出现的占位符名称，供 .format() 校验和填充
         )
 
 
     # todo 1.2 定义假设问题生成的 Prompt 模板 -> 生成查询时的'假设性答案', 用于提升后续的检索精度.
-    @staticmethod
-    def hyde_prompt():
+    @staticmethod  # 声明为静态方法
+    def hyde_prompt():  # 返回 HyDE（假设性文档嵌入）场景使用的 Prompt 模板
         #   创建并返回 PromptTemplate 对象
         return PromptTemplate(
             template="""  
@@ -45,12 +45,12 @@ class RAGPrompts:
             假设答案:  
             """,
             #   定义输入变量
-            input_variables=["query"],
+            input_variables=["query"],  # 声明模板中出现的占位符名称
         )
 
     # todo 1.3 定义子查询生成的 Prompt 模板 -> 将长/复杂查询拆分为多个简单子查询, 便于分布检索.
-    @staticmethod
-    def subquery_prompt():
+    @staticmethod  # 声明为静态方法
+    def subquery_prompt():  # 返回"复杂查询拆分为子查询"场景使用的 Prompt 模板
         #   创建并返回 PromptTemplate 对象
         return PromptTemplate(
             template="""  
@@ -59,12 +59,12 @@ class RAGPrompts:
             子查询:  
             """,
             #   定义输入变量
-            input_variables=["query"],
+            input_variables=["query"],  # 声明模板中出现的占位符名称
         )
 
     # todo 1.4 定义回溯问题生成的 Prompt 模板 -> 将复杂/冗长查询简化为简短问题, 提升检索关键词集中度.
-    @staticmethod
-    def backtracking_prompt():
+    @staticmethod  # 声明为静态方法
+    def backtracking_prompt():  # 返回"复杂查询简化为简短问题"场景使用的 Prompt 模板
         #   创建并返回 PromptTemplate 对象
         return PromptTemplate(
             template="""  
@@ -73,24 +73,24 @@ class RAGPrompts:
             简化问题:  
             """,
             #   定义输入变量
-            input_variables=["query"],
+            input_variables=["query"],  # 声明模板中出现的占位符名称
         )
 
 # todo 2. 测试代码.
-if __name__ == '__main__':
+if __name__ == '__main__':  # 仅在直接运行本文件时执行以下测试逻辑，作为模块导入时不会执行
     # 测试1: 基础RAG回答模版 -> 直接检索.
     # 1. 创建 RAG 提示模板类的实例
-    rag_prompt = RAGPrompts.rag_prompt()
+    rag_prompt = RAGPrompts.rag_prompt()  # 调用静态方法获取 RAG 场景的 PromptTemplate 对象
     # 2. 测试RAG基础模板.
-    result = rag_prompt.format(context="黑马程序员是一家IT培训结构,主打Python,AI等课程", history=[], question="这家机构的名字叫什么?", phone="13112345678")
+    result = rag_prompt.format(context="黑马程序员是一家IT培训结构,主打Python,AI等课程", history=[], question="这家机构的名字叫什么?", phone="13112345678")  # 用具体值填充占位符，生成最终提示词字符串
     # 3. 打印结果
-    print(result)
-    print('♥️' * 30)
+    print(result)  # 打印填充后的完整 Prompt 文本
+    print('♥️' * 30)  # 打印分隔线，便于在控制台区分两次测试的输出
 
     # 测试2: HyDE假设答案.
     # 1. 创建 HyDE 提示模板类的实例
-    hyde_prompt = RAGPrompts.hyde_prompt()
+    hyde_prompt = RAGPrompts.hyde_prompt()  # 调用静态方法获取 HyDE 场景的 PromptTemplate 对象
     # 2. 测试HyDE模板.
-    result = hyde_prompt.format(query="如何培养孩子的专注力")
+    result = hyde_prompt.format(query="如何培养孩子的专注力")  # 用具体查询内容填充占位符，生成最终提示词字符串
     # 3. 打印结果
-    print(result)
+    print(result)  # 打印填充后的完整 Prompt 文本

@@ -97,6 +97,10 @@ async def get_sources():
 @app.post("/api/create_session")
 async def create_session():
     session_id = str(uuid.uuid4())
+    mysql_client.cursor.execute(
+        "INSERT INTO sessions (session_id) VALUES (%s)", (session_id,)
+    )
+    mysql_client.connection.commit()
     return {"session_id": session_id}
 
 @app.get("/api/history/{session_id}")
@@ -123,6 +127,7 @@ async def query(request: QueryRequest):
     # 检查问候语
     greeting = check_greeting(request.query)
     if greeting:
+        mysql_client.update_session_history(session_id, request.query, greeting)
         return QueryResponse(
             answer=greeting,
             is_streaming=False,
@@ -134,7 +139,8 @@ async def query(request: QueryRequest):
     answer, need_rag = rag_system.bm25_search.search(request.query)
 
     if answer:
-        # BM25 命中，直接返回
+        # BM25 命中，直接返回，并保存到对话历史（否则刷新页面这轮问答会丢失，会话列表的消息数也不准）
+        mysql_client.update_session_history(session_id, request.query, answer)
         return QueryResponse(
             answer=answer,
             is_streaming=False,
@@ -155,16 +161,17 @@ async def get_sessions():
     """获取所有历史会话列表"""
     try:
         sql = """
-            SELECT 
-                session_id, 
-                MIN(timestamp) as created_at,
-                COUNT(*) as message_count,
-                (SELECT question FROM conversations c2 
-                 WHERE c2.session_id = c1.session_id 
+            SELECT
+                s.session_id,
+                s.created_at,
+                COUNT(c.id) as message_count,
+                (SELECT question FROM conversations c2
+                 WHERE c2.session_id = s.session_id
                  ORDER BY timestamp DESC LIMIT 1) as last_question
-            FROM conversations c1
-            GROUP BY session_id
-            ORDER BY created_at DESC
+            FROM sessions s
+            LEFT JOIN conversations c ON c.session_id = s.session_id
+            GROUP BY s.session_id, s.created_at
+            ORDER BY s.created_at DESC
             LIMIT 50
         """
         mysql_client.cursor.execute(sql)
@@ -198,8 +205,8 @@ async def get_session_messages(session_id: str):
 async def switch_session(session_id: str):
     """切换当前会话（仅验证会话是否存在）"""
     try:
-        # 检查会话是否存在
-        sql = "SELECT 1 FROM conversations WHERE session_id = %s LIMIT 1"
+        # 检查会话是否存在（查 sessions 注册表，而不是 conversations——新会话还没消息时后者查不到）
+        sql = "SELECT 1 FROM sessions WHERE session_id = %s LIMIT 1"
         mysql_client.cursor.execute(sql, (session_id,))
         if mysql_client.cursor.fetchone():
             return {"success": True, "session_id": session_id}
@@ -213,8 +220,8 @@ async def switch_session(session_id: str):
 async def delete_session(session_id: str):
     """删除指定会话"""
     try:
-        sql = "DELETE FROM conversations WHERE session_id = %s"
-        mysql_client.cursor.execute(sql, (session_id,))
+        mysql_client.cursor.execute("DELETE FROM conversations WHERE session_id = %s", (session_id,))
+        mysql_client.cursor.execute("DELETE FROM sessions WHERE session_id = %s", (session_id,))
         mysql_client.connection.commit()
         logger.info(f"会话 {session_id} 已删除")
         return {"success": True, "message": "会话已删除"}
@@ -304,4 +311,4 @@ if __name__ == "__main__":
     import uvicorn
     host = os.getenv('HOST', '0.0.0.0')
     port = int(os.getenv('PORT', 8080))
-    uvicorn.run("app:app", host=host, port=port, reload=False)
+    uvicorn.run(app, host=host, port=port, reload=False)

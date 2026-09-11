@@ -50,8 +50,15 @@ openai==3.3.1
 langchain-openai==1.6.0
 
 # ---- Web 服务 (仅 app.py 需要，命令行 main.py 不需要) ----
-fastapi
+fastapi==0.141.1
 uvicorn==0.52.4
+websockets==16.1.1
+
+# ---- RAG 效果评估 (仅 scripts/eval_ragas.py 需要) ----
+#   ragas==0.4.3 在 import 时会无条件加载 langchain_community.chat_models.vertexai，
+#   但本仓库锁定的 langchain-community==0.4.2 已经把这个子模块整个移除了，
+#   eval_ragas.py 里用一个占位模块把这次 import 垫过去，不需要改动这两个包的版本。
+ragas==0.4.3
 
 # ---- 可选：生成自定义 pdf 文档时用到 ----
 reportlab==5.0.1

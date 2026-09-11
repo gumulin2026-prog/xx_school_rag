@@ -1,0 +1,77 @@
+{
+  "n_samples": 30,
+  "overall": {
+    "faithfulness": 0.9062360515301692,
+    "answer_relevancy": 0.8793908510218588,
+    "context_precision": 0.9999999999116663,
+    "context_recall": 0.9333333333333333
+  },
+  "by_category": {
+    "交通": {
+      "faithfulness": 0.8131868131868132,
+      "answer_relevancy": 0.9822483665461633,
+      "context_precision": 0.999999999925,
+      "context_recall": 1.0
+    },
+    "住宿": {
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.8402138893913004,
+      "context_precision": 0.9999999999125,
+      "context_recall": 0.75
+    },
+    "军训": {
+      "faithfulness": 0.9607843137254902,
+      "answer_relevancy": 0.8776009236718886,
+      "context_precision": 0.9999999999166667,
+      "context_recall": 0.6666666666666666
+    },
+    "图书馆": {
+      "faithfulness": 0.8333333333333333,
+      "answer_relevancy": 0.9371180316139331,
+      "context_precision": 0.999999999925,
+      "context_recall": 1.0
+    },
+    "学习": {
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.9521365323952373,
+      "context_precision": 0.9999999999,
+      "context_recall": 1.0
+    },
+    "快递": {
+      "faithfulness": 0.8301587301587302,
+      "answer_relevancy": 0.8684353061105604,
+      "context_precision": 0.9999999999,
+      "context_recall": 1.0
+    },
+    "报到": {
+      "faithfulness": 0.8897727272727274,
+      "answer_relevancy": 0.9223728573786105,
+      "context_precision": 0.9999999999,
+      "context_recall": 1.0
+    },
+    "校园卡": {
+      "faithfulness": 0.8484848484848485,
+      "answer_relevancy": 0.9382097068269252,
+      "context_precision": 0.9999999999333333,
+      "context_recall": 1.0
+    },
+    "社团": {
+      "faithfulness": 0.8,
+      "answer_relevancy": 0.8745874420577151,
+      "context_precision": 0.99999999995,
+      "context_recall": 1.0
+    },
+    "选课": {
+      "faithfulness": 0.9166666666666666,
+      "answer_relevancy": 0.959988083648284,
+      "context_precision": 0.9999999999,
+      "context_recall": 1.0
+    },
+    "食堂": {
+      "faithfulness": 0.9555555555555556,
+      "answer_relevancy": 0.593694393211587,
+      "context_precision": 0.9999999999,
+      "context_recall": 1.0
+    }
+  }
+}

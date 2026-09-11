@@ -2,7 +2,8 @@
 
 面向大一新生的智能问答系统：融合 **BM25 关键词快速通道**、**意图识别分流**、
 **Milvus 向量检索（BGE-M3 混合检索 + BGE-Reranker 重排 + 查询改写策略）** 和
-**大模型生成（DeepSeek）**，支持多轮对话。
+**大模型生成（DeepSeek）**，支持多轮对话与多会话历史管理（新建/切换/删除会话），
+并接入 **RAGAS** 对「检索 + 生成」效果做量化评估。
 
 ---
 
@@ -42,7 +43,7 @@ xx_shcool_rag/
 │   ├── strategy_selector.py  检索策略选择（直接/HyDE/子查询/回溯问题）
 │   ├── prompts.py            Prompt 模板
 │   ├── llm_client.py         DeepSeek（兼容 OpenAI 接口）
-│   ├── mysql_client.py       qa_knowledge / conversations 读写
+│   ├── mysql_client.py       qa_knowledge / conversations / sessions 读写
 │   ├── redis_client.py       缓存 + 问题库
 │   └── rag_system.py         主流程编排
 ├── utils/
@@ -51,11 +52,13 @@ xx_shcool_rag/
 │   └── edu_text_spliter/     中文递归切分器
 ├── scripts/
 │   ├── gen_intent_dataset.py 生成意图分类训练集
-│   └── init_milvus.py        建库 + 灌文档向量
+│   ├── init_milvus.py        建库 + 灌文档向量
+│   └── eval_ragas.py         用 RAGAS 评估检索+生成效果
 ├── data/
 │   ├── mysql_data/new_student_qa.csv   30 条迎新问答（GBK）
-│   ├── rag_data/<分类>_data/           RAG 长文档（按分类分目录）
+│   ├── rag_data/<分类>_data/           RAG 长文档（按分类分目录，共 11 类）
 │   ├── train_data/classify_data/       意图分类训练集
+│   ├── eval/                           RAGAS 评估报告（csv/json）
 │   ├── stopwords.txt / user_dict.txt   BM25 分词资源
 ├── models/                   本地模型（不入库，见 models/README.md）
 ├── static/                   Web 前端
@@ -114,9 +117,45 @@ python main.py
 
 **Web 服务：**
 ```bash
-pip install fastapi websockets
 python app.py            # 默认 http://0.0.0.0:8080
 ```
+支持多会话（新建 / 切换 / 删除 / 清空历史），会话本身记录在 MySQL `sessions` 表，
+和具体问答内容（`conversations` 表）解耦，浏览器打开后在左侧会话列表操作即可。
+
+## 效果评估（RAGAS）
+
+用 [RAGAS](https://github.com/vibrantlabsai/ragas) 评估「检索 + 生成」链路的效果，指标：
+`faithfulness`（答案是否忠于检索到的资料）/ `answer_relevancy`（答案是否切题）/
+`context_precision`（检索精确率）/ `context_recall`（检索召回率）。
+
+测试集直接取 `qa_knowledge` 表的全部问答（问题作为输入，答案作为参考答案）；评估时
+刻意绕开 BM25 缓存和意图分类，只跑纯粹的「检索 -> 拼 prompt -> LLM 生成」两步——
+因为测试问题和 BM25 问题库逐字相同，走完整流程只会 100% 命中缓存，测不出 RAG 真实水平。
+
+```bash
+python scripts/eval_ragas.py        # 全量评估
+python scripts/eval_ragas.py 10     # 只测前 10 条，快速冒烟
+```
+
+结果保存在 `data/eval/ragas_report.csv`（逐条明细，含每条的检索上下文/生成答案/各项分数）
+和 `data/eval/ragas_report.json`（整体 + 按分类汇总）。裁判 LLM 复用项目自己的 DeepSeek
+配置，embedding 复用 BGE-M3，不需要额外的 API Key。
+
+最新一次评估结果（30 条，覆盖 11 个分类）：
+
+| 指标 | 分数 |
+|---|---|
+| faithfulness | 0.906 |
+| answer_relevancy | 0.879 |
+| context_precision | 1.000 |
+| context_recall | 0.933 |
+
+评估过程中发现过两个问题并已修复：一是 `data/rag_data/` 曾缺少"学习"类文档，
+导致该分类 `context_precision`/`context_recall` 直接为 0（已补充
+`学习_data/新生学习生活须知.md` 并重新灌库，修复后满分）；二是 `ragas==0.4.3` 与
+`langchain-community==0.4.2`（后者已进入 sunset、移除了部分子模块）不兼容，以及
+DeepSeek 的 Chat Completions 接口不支持 `n>1` 采样，两者都会导致个别指标算出
+`NaN`——`scripts/eval_ragas.py` 里已经用占位模块 + 强制 `n=1` 的方式绕开。
 
 ## 关键配置项（config.ini）
 
